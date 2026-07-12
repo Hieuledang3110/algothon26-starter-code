@@ -24,9 +24,11 @@ back. Each strategy file is a self-contained, independently-submittable `getMyPo
 | File | Purpose |
 | :--- | :--- |
 | `family_cluster_volfilter.py` | **CHAMPION — the current submission file.** Family mean-reversion + no-trade band + a market-volatility "risk-off" dial. In-sample Score **138.63**, Sharpe 2.21. |
+| `family_cluster_bigsize.py` | **Weak-regime challenger.** The champion's exact strategy run *bigger* (more exposure) and with a *harder* risk-off dial. Built after the first grader run landed in the weak regime (Score 40, mean +81, Sharpe ~1): in-sample Score **151.71**, Sharpe 2.21, and it lifts the weak half of the window from ~7 to ~33. A deliberate leverage increase, so the two files above stay as fallbacks. |
 | `family_cluster_only.py` | **Baseline / fallback.** Same strategy minus the vol dial. Score 136.79, Sharpe 2.19. Use if the dial ever misbehaves on a new stage's data. |
 | `eval.py` | Official evaluation/backtest script. Authoritative source for scoring and trading mechanics. Imports the **active** strategy on line ~9 (currently `family_cluster_volfilter`) — flip that one line to score a different file. **Don't edit anything else.** |
 | `research.py` | Local research harness (**NOT submitted**). `backtest()` reproduces eval.py's Score/Sharpe/turnover exactly for any position function; `featureIC()` walk-forward-screens a candidate signal's predictive power. |
+| `tune.py` | Self-service parameter explorer (**NOT submitted**). Sweep any strategy's knobs (each held constant or investigated over a list) and rank the results by the full-window and weak/strong-half Score, with a built-in `--perturb` overfit check. **Commands: see `README.md`.** |
 | `helper.ipynb` | Analysis dashboard: equity curve + drawdown, daily-profit profile, today's bets, **per-instrument profit attribution**, and a signal lab. Aliases the champion as `teamName`. |
 | `h1_analysis.ipynb` | Regime diagnosis — *why* the weak half of the window is weak — and the derivation of the vol dial. Aliases the baseline as `teamName`. |
 | `prices.txt` | Current stage's price data — whitespace-separated, one column per instrument, one row per day, with a header row of tickers. |
@@ -131,17 +133,11 @@ the H1/H2 split**, and **reject peaks that don't survive a small perturbation** 
 
 ## Running the backtest
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate      # Windows (this repo's platform)
-pip install -r requirements-dev.txt
-python eval.py
-```
-
-`eval.py` imports the **active** strategy (currently `family_cluster_volfilter`); to score a
-different strategy file, change that one import line. Output ends with `mean(PL)`, `return`,
-`StdDev(PL)`, `annSharpe(PL)`, `totDvolume`, and `Score`. `python research.py` does the same via
-the harness, and `research.backtest(fn, prc, ...)` scores any function without editing files.
+**Commands (setup, `eval.py`, `research.py`, `tune.py`, notebooks) live in `README.md`** — that's
+the command reference; this file is for explanation. In short: `eval.py` scores the **active**
+strategy (currently `family_cluster_volfilter`); flip its one import line to score a different file.
+`research.py` mirrors it via the harness, and `research.backtest(fn, prc, ...)` scores any function
+without editing files. `tune.py` sweeps parameters and runs the overfit check.
 
 ## Submission rules (see the Submission Guide before submitting)
 
