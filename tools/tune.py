@@ -30,6 +30,20 @@ READING THE OUTPUT
     by how they behave in H1, not just the full window, and REJECT any peak whose neighbours
     collapse (that's what --perturb is for). See CLAUDE.md "Our strategy" for the full playbook.
 """
+import os
+import sys
+
+# Ensure project root and strategy directories are in sys.path
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if root_dir not in sys.path:
+    sys.path.append(root_dir)
+if os.path.join(root_dir, 'strategy') not in sys.path:
+    sys.path.append(os.path.join(root_dir, 'strategy'))
+
+# If executed from within the tools directory, change CWD to project root
+if os.path.basename(os.getcwd()) == 'tools':
+    os.chdir('..')
+
 import argparse
 import importlib
 import itertools

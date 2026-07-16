@@ -14,6 +14,19 @@ Usage:
 
 Nothing here is part of the submission; keep strategy logic in the family_cluster_*.py files.
 """
+import os
+import sys
+
+# Ensure project root and strategy directories are in sys.path
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if root_dir not in sys.path:
+    sys.path.append(root_dir)
+if os.path.join(root_dir, 'strategy') not in sys.path:
+    sys.path.append(os.path.join(root_dir, 'strategy'))
+
+# If executed from within the tools directory, change CWD to project root
+if os.path.basename(os.getcwd()) == 'tools':
+    os.chdir('..')
 
 import argparse
 import numpy as np
@@ -197,9 +210,9 @@ if __name__ == "__main__":
     prc = loadPrices()
     print(f"Loaded {prc.shape[0]} instruments for {prc.shape[1]} days\n")
 
-    from family_cluster_volfilter import getMyPosition   # active strategy -- switch to compare
+    from strategy.family_cluster_ownrevert import getMyPosition   # active strategy -- switch to compare
     m = backtest(getMyPosition, prc, args.days, verbose=args.verbose)
-    printReport("family_cluster_volfilter.getMyPosition", m)
+    printReport("family_cluster_ownrevert.getMyPosition", m)
 
     if args.ic:
         print("\n----- feature IC (walk-forward) -----")

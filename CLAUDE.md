@@ -23,12 +23,14 @@ back. Each strategy file is a self-contained, independently-submittable `getMyPo
 
 | File | Purpose |
 | :--- | :--- |
-| `family_cluster_volfilter.py` | **CHAMPION — the current submission file.** Family mean-reversion + no-trade band + a market-volatility "risk-off" dial. In-sample Score **138.63**, Sharpe 2.21. |
-| `family_cluster_bigsize.py` | **Weak-regime challenger.** The champion's exact strategy run *bigger* (more exposure) and with a *harder* risk-off dial. Built after the first grader run landed in the weak regime (Score 40, mean +81, Sharpe ~1): in-sample Score **151.71**, Sharpe 2.21, and it lifts the weak half of the window from ~7 to ~33. A deliberate leverage increase, so the two files above stay as fallbacks. |
-| `family_cluster_only.py` | **Baseline / fallback.** Same strategy minus the vol dial. Score 136.79, Sharpe 2.19. Use if the dial ever misbehaves on a new stage's data. |
-| `eval.py` | Official evaluation/backtest script. Authoritative source for scoring and trading mechanics. Imports the **active** strategy on line ~9 (currently `family_cluster_volfilter`) — flip that one line to score a different file. **Don't edit anything else.** |
-| `research.py` | Local research harness (**NOT submitted**). `backtest()` reproduces eval.py's Score/Sharpe/turnover exactly for any position function; `featureIC()` walk-forward-screens a candidate signal's predictive power. |
-| `tune.py` | Self-service parameter explorer (**NOT submitted**). Sweep any strategy's knobs (each held constant or investigated over a list) and rank the results by the full-window and weak/strong-half Score, with a built-in `--perturb` overfit check. **Commands: see `README.md`.** |
+| `family_cluster_ownrevert.py` | **CHAMPION — the current submission file.** Adds a NEW, universe-wide *own-price* reversion sleeve on top of the family sleeve. This is the big leap: in-sample Score **304**, Sharpe **2.88**, and — the point — it is **regime-balanced** (H1 296 ≈ H2 313), fixing the champion's fatal weak-half hole (was ~7). Default sleeve is dollar-balanced for generalization; a `OWN_NEUTRALIZE=False` flag takes a higher-return/higher-risk variant (Score ~432). See "The own-price reversion discovery" below. |
+| `family_cluster_algo_custom.py` | **Gemini's ALGO-carve-out (superseded).** First to spot the own-price reversion edge, but applied it to *only* asset 0 (ALGO) via a dedicated 5-day z-score. In-sample Score **250**, Sharpe 3.06, H1 147. Correct insight, ~1/14 of the harvest — `ownrevert` generalises it to the whole universe. Kept as the record of where the idea came from. |
+| `family_cluster_volfilter.py` | **Former champion / fallback.** Family mean-reversion + no-trade band + a market-volatility "risk-off" dial. In-sample Score **138.63**, Sharpe 2.21. Regime-fragile (H1 ~7). Safe drop-back if the own-price sleeve ever misbehaves on a new stage. |
+| `family_cluster_bigsize.py` | **Weak-regime challenger (last submitted).** The volfilter strategy run *bigger* + a *harder* risk-off dial. Grader result: Score 64, mean +108, Sharpe ~1 (up from volfilter's Score 40, mean +81). In-sample Score **151.71**, Sharpe 2.21, H1 ~33. |
+| `family_cluster_only.py` | **Baseline.** Family strategy minus the vol dial. Score 136.79, Sharpe 2.19. |
+| `eval.py` | Official evaluation/backtest script. Authoritative source for scoring and trading mechanics. Imports the **active** strategy on line ~10 (currently `family_cluster_ownrevert`) — flip that one line to score a different file. **Don't edit anything else.** |
+| `research.py` | Local research harness (**NOT submitted**, lives in `tools/`). `backtest()` reproduces eval.py's Score/Sharpe/turnover exactly for any position function; `featureIC()` walk-forward-screens a candidate signal's predictive power. |
+| `tune.py` | Self-service parameter explorer (**NOT submitted**, in `tools/`). Sweep any strategy's knobs (each held constant or investigated over a list) and rank the results by the full-window and weak/strong-half Score, with a built-in `--perturb` overfit check. **Commands: see `README.md`.** |
 | `helper.ipynb` | Analysis dashboard: equity curve + drawdown, daily-profit profile, today's bets, **per-instrument profit attribution**, and a signal lab. Aliases the champion as `teamName`. |
 | `h1_analysis.ipynb` | Regime diagnosis — *why* the weak half of the window is weak — and the derivation of the vol dial. Aliases the baseline as `teamName`. |
 | `prices.txt` | Current stage's price data — whitespace-separated, one column per instrument, one row per day, with a header row of tickers. |
@@ -124,12 +126,73 @@ measured by full backtest across the H1/H2/full split:
   scoring 164) was **overfit**: it failed a ±5-day perturbation test (scattered 79→172), and the
   robust *dense-range* version scored *below* baseline. The single 60-day horizon is a real sweet spot.
 
-**Meta-lesson.** This is a **fast, recency-driven cross-sectional reversion engine with a single
-sharp sweet spot.** Gains do *not* come from smoothing / slowing / robustifying / using more data —
-those all fight its nature. The only unexhausted direction is adding a genuinely *different,
-uncorrelated* signal (cross-signal diversification for a higher Sharpe) — and even horizon
-diversification already failed, so the bar is high. When testing any change: judge by **Score across
-the H1/H2 split**, and **reject peaks that don't survive a small perturbation** (that's overfitting).
+**Meta-lesson (about the FAMILY sleeve).** The family engine is a **fast, recency-driven
+cross-sectional reversion engine with a single sharp sweet spot.** Gains do *not* come from
+smoothing / slowing / robustifying / using more data — those all fight its nature. The one
+unexhausted direction was adding a genuinely *different, uncorrelated* signal for a higher Sharpe —
+**and that is exactly what the own-price sleeve below turned out to be.** When testing any change:
+judge by **Score across the H1/H2 split**, and **reject peaks that don't survive a small
+perturbation** (that's overfitting).
+
+## The own-price reversion discovery (the current champion's engine)
+
+**The one-line story.** Gemini's `family_cluster_algo_custom.py` carved out asset 0 (ALGO) and
+traded it with its *own* short-horizon reversion signal ("if today jumped above its own last-few-day
+average, bet it snaps back"), which healed the weak regime. We asked: *is that edge special to ALGO?*
+We screened all 51 instruments and found **it isn't** — the same own-price snap-back is present in
+~14 names, and (unlike the family signal) it works in **both** regime halves. So we applied it to the
+**whole universe**, not just ALGO. That is `family_cluster_ownrevert.py` (Score 304 vs the champion's
+138), and it's the answer to "what other avenues": *harvest the broad own-price reversion, not just
+asset 0's.*
+
+**Two facts that matter most.**
+- **The data reverts at two independent levels.** (1) *Cross-sectional* — asset vs its family (the old
+  family sleeve; strong but **regime-fragile**, dead in H1). (2) *Own-price* — asset vs its **own**
+  recent price over ~3 days (the new sleeve; weaker per-bet but **regime-stable**, works in H1 *and*
+  H2). Screening every instrument, own-price reversion↔next-day-return correlation is ~+0.15–0.20 and
+  **stable across both halves** (e.g. window-5: H1 +0.169, H2 +0.181). That regime-stability is the
+  whole point — it plugs the hole the family signal can't.
+- **ALGO is not special for the *signal*, only for the *sizing*.** Its reversion edge (+0.148) is
+  middling — BLBT (inst 41) is stronger (+0.201). ALGO is worth over-weighting only because its
+  position limit is 10× larger and its fees 5× cheaper (`OWN_INST0_MULT`), so you can run more size
+  on it cheaply. That's the correct, generalisable reading of "hidden rule asymmetries": exploit the
+  *limits/fees* of special names, don't assume the *signal* lives only there.
+
+**The champion's design (`family_cluster_ownrevert.py`).** Two independent reversion sleeves added
+together, then the usual leave-it-alone band + (now near-inert) vol dial:
+- **Family sleeve** — the old cross-sectional bet, but at a smaller budget (`FAMILY_GROSS` 0.75M,
+  down from 1.0M) since the own-price sleeve now does the heavy lifting.
+- **Own-price sleeve** — each asset's 3-day z-score reversion (today excluded from its own mean, so
+  no look-ahead), equal-risk sized (÷ each asset's 20-day vol), `OWN_BUDGET` 2.0M, asset 0 boosted 10×.
+
+**The one honest risk knob — `OWN_NEUTRALIZE` (default True).** The own-price sleeve, left as-is, ran a
+big *swinging* net market exposure (mean +9% of budget but **std 56%**). That un-balanced version made
+~30% more average profit — but the extra came from an **uncontrolled whole-market timing bet** ("buy
+everything after the market dips"), a single un-diversifiable wager. We **default to dollar-balanced**
+(`OWN_NEUTRALIZE=True`, Score 304, Sharpe 2.88, H1 296 ≈ H2 313) because that keeps only the clean,
+diversified per-asset alpha — the generalisation-safe choice. Set it `False` for the higher-return,
+higher-risk variant (Score ~432, but leaning on that market-timing tilt).
+
+**Robustness (why we trust it more than the old headline).** Judged on the H1/H2 split and perturbed:
+- **Regime-balanced** (H1 296 ≈ H2 313). The exact property the family-only champion lacked — the
+  thing that torched us on the grader (in-sample 138 → grader 40/64).
+- **Smooth, not a knife-edge:** own-window 3–5 and family/own budgets and the band are all flat/monotone
+  (no cliffs). The vol dial `k` now barely matters (<1 pt across k 0→2) — it was a crutch for the
+  regime-fragile family signal; the regime-stable sleeve doesn't need it.
+- **Broad, not a few lucky names:** drop the single best reversion name (BLBT) → basically unchanged;
+  drop the top 6 of the 14 edge names → still beats the old champion in the weak half.
+
+**Still in-sample.** 304 is a 250-day in-sample number; expect regime shrinkage on hidden data (the
+family sleeve went ~2× lower on the grader). But the own-price sleeve's *regime-stability* is the
+reason to expect it to hold up **better** than the family-only book did.
+
+**Gemini's other two avenues — measured, low-value (don't spend time here):**
+- *Cross-asset lead-lag for ALGO* (yesterday's market return vs ALGO, corr ~−0.06): tiny next to the
+  own-price +0.17, and ALGO-specific. The universe-wide own sleeve already captures ALGO plus 13 others.
+- *Momentum / trend-following hedge*: the 20-day momentum screen is mostly **negative** (reversion even
+  at 20 days) and **not** regime-stable — momentum is a weak diversifier here. This is a reversion
+  market at every horizon; a momentum overlay is unlikely to add uncorrelated value (consistent with
+  the horizon-averaging and P&L-throttle rejections above).
 
 ## Running the backtest
 

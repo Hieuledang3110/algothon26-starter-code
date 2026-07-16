@@ -7,7 +7,7 @@ Participants: write getMyPosition(prcSoFar) in teamName.py and update the import
 import numpy as np
 import pandas as pd
 # active strategy under test -- switch this one line to score a different strategy file
-from family_cluster_volfilter import getMyPosition as getPosition
+from strategy.family_cluster_ownrevert import getMyPosition as getPosition
 
 nInst = 0
 nt = 0
