@@ -23,18 +23,80 @@ back. Each strategy file is a self-contained, independently-submittable `getMyPo
 
 | File | Purpose |
 | :--- | :--- |
-| `family_cluster_ownrevert.py` | **CHAMPION — the current submission file.** Adds a NEW, universe-wide *own-price* reversion sleeve on top of the family sleeve. This is the big leap: in-sample Score **304**, Sharpe **2.88**, and — the point — it is **regime-balanced** (H1 296 ≈ H2 313), fixing the champion's fatal weak-half hole (was ~7). Default sleeve is dollar-balanced for generalization; a `OWN_NEUTRALIZE=False` flag takes a higher-return/higher-risk variant (Score ~432). See "The own-price reversion discovery" below. |
+| `family_cluster_ownrevert.py` | **❌ FAILED OUT-OF-SAMPLE — demoted (2026-07-16).** Looked like the champion in-sample (Score **304**, Sharpe **2.88**, "regime-balanced" H1 296 ≈ H2 313) but scored **−26 on the grader** (mean −26). The own-price sleeve didn't generalise and was 46% a concentrated ALGO bet. Kept as the cautionary record that in-sample H1/H2 balance ≠ OOS robustness. The prose in "The own-price reversion discovery" below is left intact as the *history of the mistake* — read the ⚠️ update in the ranking section for the correction. |
 | `family_cluster_algo_custom.py` | **Gemini's ALGO-carve-out (superseded).** First to spot the own-price reversion edge, but applied it to *only* asset 0 (ALGO) via a dedicated 5-day z-score. In-sample Score **250**, Sharpe 3.06, H1 147. Correct insight, ~1/14 of the harvest — `ownrevert` generalises it to the whole universe. Kept as the record of where the idea came from. |
 | `family_cluster_volfilter.py` | **Former champion / fallback.** Family mean-reversion + no-trade band + a market-volatility "risk-off" dial. In-sample Score **138.63**, Sharpe 2.21. Regime-fragile (H1 ~7). Safe drop-back if the own-price sleeve ever misbehaves on a new stage. |
-| `family_cluster_bigsize.py` | **Weak-regime challenger (last submitted).** The volfilter strategy run *bigger* + a *harder* risk-off dial. Grader result: Score 64, mean +108, Sharpe ~1 (up from volfilter's Score 40, mean +81). In-sample Score **151.71**, Sharpe 2.21, H1 ~33. |
+| `family_cluster_bigsize.py` | **🥇 REINSTATED CHAMPION / submission file (2026-07-16).** The volfilter strategy run *bigger* + a *harder* risk-off dial. **Best real grader result: Score 64, mean +108, Sharpe ~1** (beats volfilter's 40/+81). In-sample Score **151.71**, Sharpe 2.21, H1 ~33. The family sleeve is the only edge that has generalised — twice. |
 | `family_cluster_only.py` | **Baseline.** Family strategy minus the vol dial. Score 136.79, Sharpe 2.19. |
+| `family_cluster_ewcluster.py` | **Experiment — REJECTED (ties, doesn't beat).** Champion with the flat-120 family correlation swapped for a *recency-weighted* one (half-life decay, uses older data down-weighted). Best setting (half-life 80) only ties: Score 302.7, H1 305 / H2 300. The "use more old data for the 1-year cycle" direction (half-life 200–320) actively *hurts* H1 (296→250-266). Confirms: the family engine wants fresh, recent-only grouping. |
+| `family_cluster_gmm.py` | **Experiment — REJECTED (worse).** Champion with hard clustering swapped for *soft* GMM membership (PCA→GMM, each asset a probability blend of families). Regime-balanced (H1 279 ≈ H2 283) but **-23 pts** (Score 281). Soft = smoother families = blurrier snap-back; consistent with "steadier families score worse." Uses scikit-learn (accepted set), still submittable. |
+| `family_cluster_rsi.py` | **Experiment — REJECTED (wrong trade).** Champion + a third RSI-14 reversion sleeve. Small budget lifts the full window (+7, Score 311) but only by **sacrificing H1** (296→268, and falling as you size up). MACD screened too — weak *negative* IC (momentum in a reversion market). RSI is ~redundant with the own-price sleeve (signal corr +0.60 at n=5). |
 | `eval.py` | Official evaluation/backtest script. Authoritative source for scoring and trading mechanics. Imports the **active** strategy on line ~10 (currently `family_cluster_ownrevert`) — flip that one line to score a different file. **Don't edit anything else.** |
 | `research.py` | Local research harness (**NOT submitted**, lives in `tools/`). `backtest()` reproduces eval.py's Score/Sharpe/turnover exactly for any position function; `featureIC()` walk-forward-screens a candidate signal's predictive power. |
 | `tune.py` | Self-service parameter explorer (**NOT submitted**, in `tools/`). Sweep any strategy's knobs (each held constant or investigated over a list) and rank the results by the full-window and weak/strong-half Score, with a built-in `--perturb` overfit check. **Commands: see `README.md`.** |
+| `addons_lab.py` | Add-on experiment engine (**NOT submitted**, in `tools/`). Rebuilds the champion as a configurable, stateful closure so you can swap ONE piece (clustering method, extra sleeve) and read a clean H1/H2 delta: `make_strategy(family_mode=..., ew_halflife=..., rsi_budget=...)` + `evaluate(name, fn)`. Powers `addon_experiments.ipynb`. |
 | `helper.ipynb` | Analysis dashboard: equity curve + drawdown, daily-profit profile, today's bets, **per-instrument profit attribution**, and a signal lab. Aliases the champion as `teamName`. |
 | `h1_analysis.ipynb` | Regime diagnosis — *why* the weak half of the window is weak — and the derivation of the vol dial. Aliases the baseline as `teamName`. |
+| `addon_experiments.ipynb` | **Experiment log (NOT submitted).** Runs the three add-on ideas (GMM soft clustering, weighted history, RSI/MACD) through `addons_lab`, with the signal screens, the H1/H2 verdicts, and a ranked summary table. Read here for *why each was rejected*. |
 | `prices.txt` | Current stage's price data — whitespace-separated, one column per instrument, one row per day, with a header row of tickers. |
 | `requirements-dev.txt` | Pins the grading sandbox's package versions for a matching local env. **Never submit this file.** |
+
+## Strategy catalog & ranking (so we don't forget)
+
+> **⚠️ OUT-OF-SAMPLE UPDATE (2026-07-16): the ownrevert champion FAILED on the grader.**
+> `family_cluster_ownrevert` scored **−26 (mean −26, sd 1834)** on hidden data — *worse than
+> doing nothing* — despite its in-sample 304. The own-price sleeve did NOT generalise: it flipped
+> to a net loss out-of-sample, and **46% of the book was a single concentrated ALGO bet** (the 10×
+> `OWN_INST0_MULT`). Meanwhile the plain family sleeve has printed a *positive* grader mean twice
+> (**volfilter +81, bigsize +108**). **The in-sample H1/H2 split lied** — both halves came from the
+> same stage, so "regime-balanced" was never a real out-of-sample check. **`family_cluster_bigsize`
+> (grader Score 64, mean +108) is the reinstated champion / submission file.**
+
+**Sort key that matters: the GRADER column (real out-of-sample), not in-sample Score.** In-sample
+numbers have now over-promised twice (volfilter 138→40, ownrevert 304→−26). Trust the grader.
+
+| Strategy | In-samp | H1 | Sharpe | **Grader** | Status |
+| :--- | ---: | ---: | ---: | ---: | :--- |
+| `family_cluster_bigsize` | 152 | ~33 | 2.21 | **+64** | 🥇 **CHAMPION / submit.** Family run bigger + harder risk-off dial. Best real result so far. |
+| `family_cluster_volfilter` | 139 | ~7 | 2.21 | **+40** | Family + band + vol dial. Positive OOS but smaller. Safe fallback. |
+| `family_cluster_only` | 137 | ~7 | 2.19 | — | Baseline: family sleeve only (no dial). Untested OOS but the family core that generalises. |
+| `family_cluster_ownrevert` | 304 | 296 | 2.88 | **−26** | ❌ **FAILED OOS — demoted.** Own-price sleeve didn't generalise; 46% was a concentrated ALGO bet. In-sample number was overfit (signal was screened on the same file). |
+| `family_cluster_algo_custom` | 250 | 147 | 3.06 | — | Own-price edge on asset 0 only — same failed family of signal; do NOT submit. |
+
+**Why ownrevert failed (in-sample decomposition, `scratchpad/decomp.py`).** Standalone: the family
+sleeve alone has a *dead* H1 (1.2); the own sleeve alone has H1 245 — so the own sleeve was the
+*entire* source of the "regime balance." That sleeve is 59% ALGO by PnL (46% of the whole book).
+Removing the 10× ALGO boost still leaves an in-sample-fragile signal (H2 collapses 184→13, Sharpe
+1.07), and the whole own-price edge was *discovered by screening all 51 names on this one file* —
+textbook selection bias. Lesson (the hard one): **a strong in-sample H1/H2 balance is NOT evidence
+of out-of-sample robustness when both halves are the same stage; only the grader is.** Prefer the
+broad, boring family edge that has generalised twice over a concentrated single-name reversion bet
+that dazzled in-sample.
+
+**bigsize is at its robust optimum — don't re-tune it (2026-07-16, `scratchpad/exp_size.py`).** We
+pushed the one proven lever (family + size) and confirmed there's no honest gain left: (1) bigsize is
+**broad** — ALGO is only 3% of its PnL, top-5 names 30% (vs ownrevert's 46% ALGO), which is *why* it
+generalises. (2) The size lever **saturates**: at 2.5M gross, 82% of names are already pinned at their
+eval $ cap, so 2.0-3.0M is a flat plateau and going bigger only erodes Sharpe (2.21→1.76 by 10M) for
+no edge. (3) Every knob's higher-in-sample-Score point is an **overfit trap** we now know to refuse —
+`REVERT_WINDOW=55` (full 178 but H1 7, neighbours negative), `N_CLUSTERS=7` (172 but H1 3),
+`NO_TRADE_BAND=0.8` (161 but a wiggle next to the ≥1.0 negative cliff); `VOL_K` is inert. The shipped
+config (6 / 60 / 0.5 / 2.0 / 2.5M) is the robust one. Further upside now needs a genuinely
+*uncorrelated* signal, not more tuning of this book.
+
+**Add-on experiments (all REJECTED in-sample — and now doubly moot: they are variants of the
+own-price book `ownrevert`, which itself failed out-of-sample. See `addon_experiments.ipynb`):**
+
+| Idea (user's #) | Strategy file | Full | H1 | H2 | Why rejected |
+| :--- | :--- | ---: | ---: | ---: | :--- |
+| Weighted history (#2) | `family_cluster_ewcluster` | 303 | 305 | 300 | Best half-life (80) only *ties*; the "more old data / 1-yr cycle" direction (hl 200-320) hurts H1 → 250-266. Churn is a feature. |
+| GMM soft clustering (#1) | `family_cluster_gmm` | 281 | 279 | 283 | Balanced but **-23**. Soft membership smooths families → blurrier snap-back. |
+| RSI / MACD (#3) | `family_cluster_rsi` | 311* | 268 | 353 | *Full-window up but H1 **down** (296→268). Trades the weak half for the strong half. MACD = momentum in a reversion market (weak). RSI ~redundant with own-price. |
+
+**Reading the table.** In-sample Scores are optimistic — expect regime shrinkage on hidden data (the
+family sleeve went ~2× lower on the grader; the own-price sleeve's regime-stability is the reason to
+expect the champion to hold up *better*). The single rule for promoting anything: **it must beat the
+champion on H1 without giving up the full score.** Nothing in the experiment table does.
 
 ## The contract: `getMyPosition(prcSoFar)`
 
@@ -134,7 +196,14 @@ unexhausted direction was adding a genuinely *different, uncorrelated* signal fo
 judge by **Score across the H1/H2 split**, and **reject peaks that don't survive a small
 perturbation** (that's overfitting).
 
-## The own-price reversion discovery (the current champion's engine)
+## The own-price reversion discovery (SUPERSEDED — this engine failed out-of-sample)
+
+> **⚠️ READ FIRST (2026-07-16): everything below is the record of a mistake, kept for the lesson.**
+> This own-price engine scored **−26 on the grader** despite the in-sample 304. It did not
+> generalise (own-price reversion flipped to a loss on hidden data; 46% of the book was a
+> concentrated ALGO bet via the 10× boost). Do not submit it. The prose below still reads as if
+> it's the champion — that framing is *wrong*; it's preserved so we remember *why* the in-sample
+> case was so seductive and how the H1/H2-balance argument fooled us. Champion is now `bigsize`.
 
 **The one-line story.** Gemini's `family_cluster_algo_custom.py` carved out asset 0 (ALGO) and
 traded it with its *own* short-horizon reversion signal ("if today jumped above its own last-few-day

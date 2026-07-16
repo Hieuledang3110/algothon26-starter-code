@@ -19,15 +19,22 @@ pip install -r requirements-dev.txt
 
 There's **one file per strategy** (a small library) - each is a self-contained, independently-submittable `getMyPosition`. There is no `teamName.py`; at submission time you copy your chosen strategy file to `<YourTeamName>.py`. See `CLAUDE.md` for what each strategy actually does.
 
-| File | Type | One-liner (details in `CLAUDE.md`) |
+| File | Type | One-liner (details + full ranking in `CLAUDE.md`) |
 | :--- | :--- | :--- |
-| `family_cluster_volfilter.py` | strategy | **Champion.** Family mean-reversion + no-trade band + vol dial. |
-| `family_cluster_bigsize.py` | strategy | Weak-regime challenger: champion + bigger book + harder dial. |
-| `family_cluster_only.py` | strategy | Baseline / fallback: champion minus the vol dial. |
+| `family_cluster_bigsize.py` | strategy | **🥇 CHAMPION / submit.** Family run bigger + harder vol dial. Best grader result (Score 64, mean +108). |
+| `family_cluster_volfilter.py` | strategy | Family + band + vol dial. Positive OOS (grader 40). Safe fallback. |
+| `family_cluster_only.py` | strategy | Baseline: family sleeve only. |
+| `family_cluster_ownrevert.py` | strategy | ❌ **FAILED OOS (grader −26), demoted.** Family + own-price sleeve; in-sample 304 was overfit (46% a concentrated ALGO bet). |
+| `family_cluster_algo_custom.py` | strategy | Own-price edge on asset 0 only — same failed signal family. Do not submit. |
+| `family_cluster_ewcluster.py` | experiment | REJECTED. Recency-weighted (not flat) family correlation. Ties, doesn't beat. |
+| `family_cluster_gmm.py` | experiment | REJECTED. Soft GMM family membership. Balanced but -23. |
+| `family_cluster_rsi.py` | experiment | REJECTED. +RSI-14 sleeve. Full up but H1 down (wrong trade). |
 | `eval.py` | helper (run) | Official backtest/scorer. |
 | `research.py` | helper (run) | Backtest any function + feature-IC screen. |
 | `tune.py` | helper (run) | Self-service parameter sweep + overfit test. |
+| `addons_lab.py` | helper (import) | Add-on experiment engine: swap one champion piece, read the H1/H2 delta. |
 | `helper.ipynb`, `h1_analysis.ipynb`, `clustering_analysis.ipynb` | notebook | Analysis dashboards. |
+| `addon_experiments.ipynb` | notebook | Log of the GMM / weighted-history / RSI experiments + verdicts. |
 | `prices.txt` | data | Current stage's prices. |
 | `requirements-dev.txt` | env | Matches the grading sandbox. **Never submit.** |
 
@@ -102,6 +109,7 @@ jupyter notebook          # then open any of the .ipynb files
 - `helper.ipynb` — equity curve + drawdown, daily-profit profile, today's bets, per-instrument profit attribution, signal lab.
 - `h1_analysis.ipynb` — regime diagnosis (why the weak half is weak) and the vol-dial derivation.
 - `clustering_analysis.ipynb` — family/cluster exploration.
+- `addon_experiments.ipynb` — log of the add-on experiments (GMM soft clustering, weighted history, RSI/MACD): signal screens, H1/H2 verdicts, ranked summary. Drives `addons_lab.py`; run top-to-bottom to reproduce.
 
 Each notebook aliases a strategy as `teamName`; re-point that one import to analyse a different file.
 
