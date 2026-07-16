@@ -21,7 +21,8 @@ There's **one file per strategy** (a small library) - each is a self-contained, 
 
 | File | Type | One-liner (details + full ranking in `CLAUDE.md`) |
 | :--- | :--- | :--- |
-| `family_cluster_bigsize.py` | strategy | **🥇 CHAMPION / submit.** Family run bigger + harder vol dial. Best grader result (Score 64, mean +108). |
+| `family_cluster_famrobust.py` | strategy | **🥇 CHAMPION / submit.** Pure family engine, `VOL_K` 2→3. On the released grader stage (days 501-750) **Score 68.6** vs bigsize's 64.1 (higher mean *and* Sharpe). |
+| `family_cluster_bigsize.py` | strategy | Prior champion: family bigger + `VOL_K` 2. Confirmed grader Score 64, mean +108. Fallback. |
 | `family_cluster_volfilter.py` | strategy | Family + band + vol dial. Positive OOS (grader 40). Safe fallback. |
 | `family_cluster_only.py` | strategy | Baseline: family sleeve only. |
 | `family_cluster_ownrevert.py` | strategy | ❌ **FAILED OOS (grader −26), demoted.** Family + own-price sleeve; in-sample 304 was overfit (46% a concentrated ALGO bet). |
@@ -35,6 +36,7 @@ There's **one file per strategy** (a small library) - each is a self-contained, 
 | `addons_lab.py` | helper (import) | Add-on experiment engine: swap one champion piece, read the H1/H2 delta. |
 | `helper.ipynb`, `h1_analysis.ipynb`, `clustering_analysis.ipynb` | notebook | Analysis dashboards. |
 | `addon_experiments.ipynb` | notebook | Log of the GMM / weighted-history / RSI experiments + verdicts. |
+| `oos_postmortem.ipynb` | notebook | **Out-of-sample autopsy (days 501-750).** Why the family sleeve generalised and the own-price/ALGO books failed; the new IC/breadth gate. |
 | `prices.txt` | data | Current stage's prices. |
 | `requirements-dev.txt` | env | Matches the grading sandbox. **Never submit.** |
 
@@ -50,7 +52,7 @@ Scores the last 250 days of `prices.txt` for the **active** strategy.
 python eval.py
 ```
 
-- **Switch strategy:** edit the import near line 10, e.g. `from family_cluster_bigsize import getMyPosition as getPosition`. Don't change anything else in `eval.py`.
+- **Switch strategy:** edit the import near line 10, e.g. `from strategy.family_cluster_famrobust import getMyPosition as getPosition`. Don't change anything else in `eval.py`.
 - **Output:** `mean(PL)`, `return`, `StdDev(PL)`, `annSharpe(PL)`, `totDvolume`, `Score`.
 
 ## `research.py` — research harness (NOT submitted)

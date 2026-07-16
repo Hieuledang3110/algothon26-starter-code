@@ -210,9 +210,9 @@ if __name__ == "__main__":
     prc = loadPrices()
     print(f"Loaded {prc.shape[0]} instruments for {prc.shape[1]} days\n")
 
-    from strategy.family_cluster_bigsize import getMyPosition   # active strategy -- switch to compare
+    from strategy.family_cluster_famrobust import getMyPosition   # active strategy -- switch to compare
     m = backtest(getMyPosition, prc, args.days, verbose=args.verbose)
-    printReport("family_cluster_bigsize.getMyPosition", m)
+    printReport("family_cluster_famrobust.getMyPosition", m)
 
     if args.ic:
         print("\n----- feature IC (walk-forward) -----")

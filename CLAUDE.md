@@ -26,12 +26,13 @@ back. Each strategy file is a self-contained, independently-submittable `getMyPo
 | `family_cluster_ownrevert.py` | **❌ FAILED OUT-OF-SAMPLE — demoted (2026-07-16).** Looked like the champion in-sample (Score **304**, Sharpe **2.88**, "regime-balanced" H1 296 ≈ H2 313) but scored **−26 on the grader** (mean −26). The own-price sleeve didn't generalise and was 46% a concentrated ALGO bet. Kept as the cautionary record that in-sample H1/H2 balance ≠ OOS robustness. The prose in "The own-price reversion discovery" below is left intact as the *history of the mistake* — read the ⚠️ update in the ranking section for the correction. |
 | `family_cluster_algo_custom.py` | **Gemini's ALGO-carve-out (superseded).** First to spot the own-price reversion edge, but applied it to *only* asset 0 (ALGO) via a dedicated 5-day z-score. In-sample Score **250**, Sharpe 3.06, H1 147. Correct insight, ~1/14 of the harvest — `ownrevert` generalises it to the whole universe. Kept as the record of where the idea came from. |
 | `family_cluster_volfilter.py` | **Former champion / fallback.** Family mean-reversion + no-trade band + a market-volatility "risk-off" dial. In-sample Score **138.63**, Sharpe 2.21. Regime-fragile (H1 ~7). Safe drop-back if the own-price sleeve ever misbehaves on a new stage. |
-| `family_cluster_bigsize.py` | **🥇 REINSTATED CHAMPION / submission file (2026-07-16).** The volfilter strategy run *bigger* + a *harder* risk-off dial. **Best real grader result: Score 64, mean +108, Sharpe ~1** (beats volfilter's 40/+81). In-sample Score **151.71**, Sharpe 2.21, H1 ~33. The family sleeve is the only edge that has generalised — twice. |
+| `family_cluster_famrobust.py` | **🥇 CHAMPION / submission file (2026-07-16, after the 501-750 OOS autopsy).** Pure family engine, one change vs bigsize: `VOL_K` 2.0→3.0. On the **released grader stage (days 501-750) Score 68.6** (mean +112, Sharpe 1.26) vs bigsize's 64.1 — higher mean *and* Sharpe. In-sample (251-500) Score 152.3. `eval.py`/`research.py` now import this file. See `tools/oos_postmortem.ipynb`. |
+| `family_cluster_bigsize.py` | **Prior champion / fallback.** The volfilter strategy run *bigger* + a *harder* risk-off dial (`VOL_K` 2.0). **Confirmed grader Score 64, mean +108, Sharpe ~1.2.** In-sample Score **151.71**, Sharpe 2.21, H1 ~33. The family sleeve is the only edge that has generalised — three times now. |
 | `family_cluster_only.py` | **Baseline.** Family strategy minus the vol dial. Score 136.79, Sharpe 2.19. |
 | `family_cluster_ewcluster.py` | **Experiment — REJECTED (ties, doesn't beat).** Champion with the flat-120 family correlation swapped for a *recency-weighted* one (half-life decay, uses older data down-weighted). Best setting (half-life 80) only ties: Score 302.7, H1 305 / H2 300. The "use more old data for the 1-year cycle" direction (half-life 200–320) actively *hurts* H1 (296→250-266). Confirms: the family engine wants fresh, recent-only grouping. |
 | `family_cluster_gmm.py` | **Experiment — REJECTED (worse).** Champion with hard clustering swapped for *soft* GMM membership (PCA→GMM, each asset a probability blend of families). Regime-balanced (H1 279 ≈ H2 283) but **-23 pts** (Score 281). Soft = smoother families = blurrier snap-back; consistent with "steadier families score worse." Uses scikit-learn (accepted set), still submittable. |
 | `family_cluster_rsi.py` | **Experiment — REJECTED (wrong trade).** Champion + a third RSI-14 reversion sleeve. Small budget lifts the full window (+7, Score 311) but only by **sacrificing H1** (296→268, and falling as you size up). MACD screened too — weak *negative* IC (momentum in a reversion market). RSI is ~redundant with the own-price sleeve (signal corr +0.60 at n=5). |
-| `eval.py` | Official evaluation/backtest script. Authoritative source for scoring and trading mechanics. Imports the **active** strategy on line ~10 (currently `family_cluster_ownrevert`) — flip that one line to score a different file. **Don't edit anything else.** |
+| `eval.py` | Official evaluation/backtest script. Authoritative source for scoring and trading mechanics. Imports the **active** strategy on line ~10 (currently `family_cluster_famrobust`) — flip that one line to score a different file. **Don't edit anything else.** |
 | `research.py` | Local research harness (**NOT submitted**, lives in `tools/`). `backtest()` reproduces eval.py's Score/Sharpe/turnover exactly for any position function; `featureIC()` walk-forward-screens a candidate signal's predictive power. |
 | `tune.py` | Self-service parameter explorer (**NOT submitted**, in `tools/`). Sweep any strategy's knobs (each held constant or investigated over a list) and rank the results by the full-window and weak/strong-half Score, with a built-in `--perturb` overfit check. **Commands: see `README.md`.** |
 | `addons_lab.py` | Add-on experiment engine (**NOT submitted**, in `tools/`). Rebuilds the champion as a configurable, stateful closure so you can swap ONE piece (clustering method, extra sleeve) and read a clean H1/H2 delta: `make_strategy(family_mode=..., ew_halflife=..., rsi_budget=...)` + `evaluate(name, fn)`. Powers `addon_experiments.ipynb`. |
@@ -42,6 +43,18 @@ back. Each strategy file is a self-contained, independently-submittable `getMyPo
 | `requirements-dev.txt` | Pins the grading sandbox's package versions for a matching local env. **Never submit this file.** |
 
 ## Strategy catalog & ranking (so we don't forget)
+
+> **✅ DAYS 501-750 RELEASED (2026-07-16): we can now mark everything on the real grader stage.**
+> `prices.txt` now holds 750 days, so `eval.py` (last 250) scores **days 501-750 — the exact hidden
+> window the grader used**. Local Stage B reproduces the leaderboard to the cent (bigsize 64.13,
+> ownrevert −26.11). Full autopsy in `tools/oos_postmortem.ipynb`. Verdict: the plain **family** sleeve
+> is the only edge that generalised (bigsize +64, volfilter +40, only +38); every elaborate book lost
+> OOS (ownrevert −26, algo_custom +14.6 with its ALGO bet losing). The own-price sleeve scored alone
+> went **215 in-sample → −84 OOS**; its next-day IC is ~0 (t<1.1) on *both* stages, i.e. never a real
+> edge. The family signal's IC is small but **stable** (+0.016→+0.014, t≈1.7-1.9). A two-stage sweep
+> gives a clean, non-overfit tweak — `VOL_K` 2→3 — shipped as **`family_cluster_famrobust.py`
+> (OOS Score 68.6 vs 64.1)**, now the champion / active import. The family engine caps at OOS ~70;
+> real upside needs a genuinely uncorrelated signal that clears a hard IC/breadth gate (below).
 
 > **⚠️ OUT-OF-SAMPLE UPDATE (2026-07-16): the ownrevert champion FAILED on the grader.**
 > `family_cluster_ownrevert` scored **−26 (mean −26, sd 1834)** on hidden data — *worse than
@@ -55,13 +68,16 @@ back. Each strategy file is a self-contained, independently-submittable `getMyPo
 **Sort key that matters: the GRADER column (real out-of-sample), not in-sample Score.** In-sample
 numbers have now over-promised twice (volfilter 138→40, ownrevert 304→−26). Trust the grader.
 
-| Strategy | In-samp | H1 | Sharpe | **Grader** | Status |
-| :--- | ---: | ---: | ---: | ---: | :--- |
-| `family_cluster_bigsize` | 152 | ~33 | 2.21 | **+64** | 🥇 **CHAMPION / submit.** Family run bigger + harder risk-off dial. Best real result so far. |
-| `family_cluster_volfilter` | 139 | ~7 | 2.21 | **+40** | Family + band + vol dial. Positive OOS but smaller. Safe fallback. |
-| `family_cluster_only` | 137 | ~7 | 2.19 | — | Baseline: family sleeve only (no dial). Untested OOS but the family core that generalises. |
-| `family_cluster_ownrevert` | 304 | 296 | 2.88 | **−26** | ❌ **FAILED OOS — demoted.** Own-price sleeve didn't generalise; 46% was a concentrated ALGO bet. In-sample number was overfit (signal was screened on the same file). |
-| `family_cluster_algo_custom` | 250 | 147 | 3.06 | — | Own-price edge on asset 0 only — same failed family of signal; do NOT submit. |
+The **Grader/OOS** column is now measured directly (days 501-750), not just the earlier submissions.
+
+| Strategy | In-samp | Sharpe | **OOS (501-750)** | Status |
+| :--- | ---: | ---: | ---: | :--- |
+| `family_cluster_famrobust` | 152 | 2.22 | **+68.6** | 🥇 **CHAMPION / submit.** Pure family engine, `VOL_K` 2→3. Higher mean *and* Sharpe than bigsize on the grader stage. |
+| `family_cluster_bigsize` | 152 | 2.21 | **+64.1** | Prior champion / fallback. Family bigger + `VOL_K` 2. Confirmed grader Score 64, mean +108. |
+| `family_cluster_volfilter` | 139 | 2.21 | **+40.3** | Family + band + gentle vol dial. Positive OOS but smaller. Safe fallback. |
+| `family_cluster_only` | 137 | 2.19 | **+38.5** | Baseline: family sleeve only (no dial). The generalising core. |
+| `family_cluster_algo_custom` | 250 | 3.06 | **+14.6** | Family(1-50) + dedicated ALGO z-score. ALGO bet LOST OOS (−11k); survived only because it was 3% of gross. Do NOT submit. |
+| `family_cluster_ownrevert` | 304 | 2.88 | **−26.1** | ❌ **FAILED OOS — demoted.** Own-price sleeve alone: 215 IS → −84 OOS; 22% of gross on ALGO (lost −12.5k). In-sample number was overfit (signal screened on the same file). |
 
 **Why ownrevert failed (in-sample decomposition, `scratchpad/decomp.py`).** Standalone: the family
 sleeve alone has a *dead* H1 (1.2); the own sleeve alone has H1 245 — so the own sleeve was the
@@ -83,6 +99,22 @@ no edge. (3) Every knob's higher-in-sample-Score point is an **overfit trap** we
 `NO_TRADE_BAND=0.8` (161 but a wiggle next to the ≥1.0 negative cliff); `VOL_K` is inert. The shipped
 config (6 / 60 / 0.5 / 2.0 / 2.5M) is the robust one. Further upside now needs a genuinely
 *uncorrelated* signal, not more tuning of this book.
+
+**OOS refinement — `VOL_K` is NOT inert out-of-sample; ship 3.0 (2026-07-16, `tools/oos_postmortem.ipynb`).**
+The "`VOL_K` is inert" claim above was measured in-sample only. On the released grader stage (501-750),
+raising `VOL_K` lifts OOS Score monotonically (2.0→64.1, 3.0→68.6, 4.0→71, 5.0→75) *and* nudges
+in-sample up (151.7→152.3). We ship **`VOL_K` 3.0** (`family_cluster_famrobust.py`): a modest step that
+improves the stage we're allowed to tune on and is confirmed positive on the held-out stage — chosen for
+the mechanism (de-risk harder when the market is choppier than its own normal), not fit to B. **Do NOT
+chase `VOL_K` to 4-5** even though it scores higher on B: that is tuning to the one OOS stage we can see —
+the exact mistake that torched ownrevert. Hold at 3.0 until a fresh stage (Stage C) exists.
+
+**The forward gate for ANY new signal (so we never repeat the ownrevert failure).** Before a signal earns
+book budget it must: (1) show a **stable IC with |t| ≳ 2 on *both* Stage A (251-500) and Stage B
+(501-750)** — the own-price signal's ~0 IC (t<1.1) on both would have vetoed it; (2) stay **broad** — no
+single instrument above ~10% of gross (ownrevert put 22% on ALGO); (3) be judged by **min(Stage A, Stage
+B)** on a **plateau**, rejecting spikes or gains that trace to one name. The family engine caps at OOS
+Score ~70 no matter how it's tuned — the only real upside is an uncorrelated signal that clears this gate.
 
 **Add-on experiments (all REJECTED in-sample — and now doubly moot: they are variants of the
 own-price book `ownrevert`, which itself failed out-of-sample. See `addon_experiments.ipynb`):**
